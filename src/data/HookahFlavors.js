@@ -1,29 +1,16 @@
 
 const randomInList = (list) => Math.floor(Math.random()*list.length);
 
-export const buildMapFromPairs = (flavorPairs) => {
-  const map = new Map();
-  for(const [f1,f2] of flavorPairs) {
-    if(!map.has(f1)) {
-      map.set(f1, []);
-    }
-    const existingEntry = map.get(f1).find((e)=>e.flavor===f2);
-    if(existingEntry) {
-      existingEntry.count++;
-    } else {
-      map.get(f1).push({flavor:f2, count: 1});
-    }
-  }
-  return map;
-};
-
 class HookahFlavors {
   flavorList = [
     "Watermelon Mint",
     "Grape Mint",
     "Mint",
+    "Lemon Mint",
     "Paan",
+    "Pirate's Cove",
     "Tropicool",
+    "Sex on the Beach",
     "Blue Mist",
     "Peach",
     "Strawberry",

@@ -1,64 +1,83 @@
-import React, { Component } from 'react';
+import React, { Fragment, Component } from 'react';
+import * as tf from '@tensorflow/tfjs';
 
 import PairMatchingModel from './models/PairMatching';
-import HookahFlavors, { buildMapFromPairs } from './data/HookahFlavors';
+import HookahFlavors from './data/HookahFlavors';
 
 import './App.css';
 
-const tf = require('@tensorflow/tfjs');
-
 const parseIntNoNaN = (str) => str === '' ? 0 : parseInt(str);
-
-const log_buffer_size = 25;
-
-let next_log_key = 1;
 
 class App extends Component {
   state = {
     trainingLog: [],
+    dataSize: 200,
     batchSize: 10,
     epochs: 25,
-    predict: "Paan"
+    testPredict: "Paan",
+    testOutput: "",
+    jsonData: "",
+    disableButtons: false
   };
+  data = {};
+  models = {};
 
-  data = {
-    hookahFlavors: new HookahFlavors(),
-    hookahFlavorPairs: null
-  };
+  componentDidMount() {
+    this.initializeDataSources();
+    this.initializeModels();
+  }
 
-  models = {
-    pairMatching: new PairMatchingModel(tf, this.data.hookahFlavors.flavorList.length, this.recordTrainingEpoch)
-  };
+  initializeModels = () => {
+    this.models.pairMatching = new PairMatchingModel(tf, this.data.hookahFlavors.flavorList.length);
+  }
 
-  recordTrainingEpoch = (epoch, log) => {
-    this.setState({trainingLog: this.state.trainingLog.slice(-log_buffer_size,log_buffer_size+1).concat({epoch:epoch, log:log})});
-  };
+  initializeDataSources = () => {
+    this.data.hookahFlavors = new HookahFlavors();
+  }
+
+  resetModelOC = () => {
+    this.setState({
+      trainingLog: [],
+      testOutput: "",
+      jsonData: ""
+    });
+    this.initializeModels();
+  }
 
   trainModelOC = () => {
     const data = this.data.hookahFlavorPairs ? this.data.hookahFlavorPairs : null;
-    this.models.pairMatching.trainModel(data, this.state.batchSize, this.state.epochs);
+    this.setState({disableButtons: true});
+    this.models.pairMatching.trainModel(data, this.state.batchSize, this.state.epochs)
+      .then(()=>{
+        this.setState({disableButtons: false});
+      })
   };
 
   makeDataOC = () => {
-    const flavorPairs = this.data.hookahFlavors.buildFlavorPairs(200);
-    console.log("Translation Maps:",this.data.hookahFlavors.getFlavorTranslationMaps());
-    const flavorMap = buildMapFromPairs(flavorPairs);
-    console.log(flavorPairs, flavorMap);
-    this.data.hookahFlavorPairs = tf.tensor(flavorPairs,[200,2],'int32');
-    this.data.hookahFlavorPairs.concat(tf.clone(this.data.hookahFlavorPairs).reverse());
+    const flavorPairs = this.data.hookahFlavors.buildFlavorPairs(this.state.dataSize);
+    const translationMaps = this.data.hookahFlavors.getFlavorTranslationMaps();
+    const translatedPairs = flavorPairs.map(([p1,p2])=>(`${translationMaps.backward.get(p1)} - ${translationMaps.backward.get(p2)}`)).sort();
+
+    this.setState({jsonData: (
+      <Fragment>
+        {translatedPairs.map((e)=>(<Fragment>{e}<br/></Fragment>))}
+      </Fragment>
+    )});
   };
 
   predictResultOC = () => {
     const {forward, backward} = this.data.hookahFlavors.getFlavorTranslationMaps();
-    if(forward.has(this.state.predict)) {
-      const predictionIndex = forward.get(this.state.predict);
+    if(forward.has(this.state.testPredict)) {
+      const predictionIndex = forward.get(this.state.testPredict);
       const prediction = this.models.pairMatching.predict(tf.tensor([predictionIndex],[1],'int32'));
       const closestMatch = tf.argMax(tf.unstack(prediction)[0]);
       const jsValue = Array.from(closestMatch.dataSync())[0];
-      console.log("Prediction: "+tf.unstack(prediction)[0]);
-      console.log("Prediction: "+backward.get(jsValue));
+      this.setState({
+        testOutput:backward.get(jsValue),
+        trainingLog: Array.from(tf.unstack(prediction)[0].dataSync())
+      });
     } else {
-      alert(`Could not find ${this.state.predict} in the flavor database.`);
+      alert(`Could not find ${this.state.testPredict} in the flavor database.`);
     }
   };
 
@@ -69,24 +88,21 @@ class App extends Component {
   render() {
     return (
       <div className="App">
-        <div className="training">
-          <h4>Training Log</h4>
-          <table className="training-log">
-            <tbody>
-              {this.state.trainingLog.map(({epoch, log}) => {
-                return (
-                  <tr key={next_log_key++}>
-                    <td>{epoch}</td>
-                    <td>{log.loss}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
+        <table>
+          <tbody>
+            {this.state.trainingLog.map((e,i)=>(
+              <tr key={i}>
+                <td>{this.data.hookahFlavors.flavorList[i]}</td>
+                <td>{e}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         <div className="controls">
           <div style={{display:"flex", flexDirection:"column", width:300, marginTop:10}}>
+            <label htmlFor="dataSizeInput">Data Size</label>
+            <input type="text" onChange={this.updateFreeTextField('dataSize',parseIntNoNaN)} value={this.state.dataSize} id="dataSizeInput"/>
+
             <label htmlFor="batchSizeInput">Batch Size</label>
             <input type="text" onChange={this.updateFreeTextField('batchSize',parseIntNoNaN)} value={this.state.batchSize} id="batchSizeInput"/>
 
@@ -94,13 +110,20 @@ class App extends Component {
             <input type="text" onChange={this.updateFreeTextField('epochs',parseIntNoNaN)} value={this.state.epochs} id="epochsInput"/>
 
             <label htmlFor="predictInput">Predict</label>
-            <input type="text" onChange={this.updateFreeTextField('predict')} value={this.state.predict} id="predictInput"/>
+            <input type="text" onChange={this.updateFreeTextField('testPredict')} value={this.state.testPredict} id="predictInput"/>
+
+            <label htmlFor="generatedOutput">Output</label>
+            <input type="text" style={{backgroundColor:"lightgray"}} readOnly value={this.state.testOutput} id="generatedOutput"/>
           </div>
           <div style={{display:"flex", marginTop:10}}>
-            <button onClick={this.makeDataOC}>Generate Data</button>
-            <button onClick={this.trainModelOC}>Train</button>
-            <button onClick={this.predictResultOC}>Predict</button>
+            <button disabled={this.state.disableButtons} onClick={this.makeDataOC}>Generate Data</button>
+            <button disabled={this.state.disableButtons} onClick={this.trainModelOC}>Train</button>
+            <button disabled={this.state.disableButtons} onClick={this.predictResultOC}>Predict</button>
+            <button disabled={this.state.disableButtons} onClick={this.resetModelOC}>Reset</button>
           </div>
+        </div>
+        <div className="dataset" style={{marginTop:10}}>
+          {this.state.jsonData}
         </div>
       </div>
     );

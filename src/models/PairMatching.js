@@ -22,7 +22,7 @@ class PairMatching {
     this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'relu', inputShape: [this.numCategories]}));
     this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'linear'}));
     this.model.summary();
-    this.model.compile({optimizer: 'sgd', loss: 'categoricalCrossentropy'});
+    this.model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
   }
 
   predict(input) {
@@ -36,21 +36,19 @@ class PairMatching {
       xs = this.tf.unstack(xs.transpose())[0];
       ys = this.tf.unstack(ys.transpose())[0];
     } else {
-      xs = this.tf.multinomial(this.tf.range(0,this.numCategories),100);
-      ys = this.tf.multinomial(this.tf.range(0,this.numCategories),100)
+      xs = this.tf.multinomial(this.tf.range(0,this.numCategories),200);
+      ys = this.tf.multinomial(this.tf.range(0,this.numCategories),200);
     }
 
     xs = this.tf.oneHot(xs, this.numCategories);
     ys = this.tf.oneHot(ys, this.numCategories);
 
-    this.model.fit(xs, ys, {
+    return this.model.fit(xs, ys, {
       batchSize: batchSize,
       epochs: epochs,
       shuffle: true,
       callbacks: {
-        onEpochEnd: (epoch, log) => {
-          this.logRecorder(epoch, log);
-        }
+        onEpochEnd: this.logRecorder
       }
     });
   }
