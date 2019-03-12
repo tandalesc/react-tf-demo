@@ -1,24 +1,41 @@
 
+.AppContainer {
+  width: 100vw;
+  height: auto;
+  overflow: hidden;
+}
+
 .App {
   display: grid;
 
   margin: 0 10px;
 
   grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 50vh 50vh;
+  grid-template-rows: 40vh 50vh;
   grid-template-areas:
     "dataset probabilityTable log"
     "dataset controls log";
   grid-column-gap: 10px;
 }
 
+.AppHeader {
+  padding: 6px 10px;
+  text-align: center;
+}
+
 @media(max-width : 550px) {
+  .AppContainer {
+    width: 100vw;
+    height: auto;
+    overflow: hidden;
+  }
+
   .App {
     grid-template-columns: 1fr;
-    grid-template-rows: 30vh . . .;
+    grid-template-rows: 40vh 40vh 50vh 50vh;
     grid-template-areas:
-      "probabilityTable"
       "controls"
+      "probabilityTable"
       "log"
       "dataset";
     grid-column-gap: 10px;
@@ -39,6 +56,16 @@
 }
 .App .controls {
   grid-area: controls;
+  overflow: scroll;
+}
+
+.buttonPanel {
+  padding: 4px 0;
+  height: 1.5rem;
+  display: flex;
+}
+.buttonPanel > * {
+  margin-right: 4px;
 }
 
 .App table {
@@ -46,4 +73,5 @@
 }
 .App table thead tr td {
   font-weight: bold;
+  text-align: center;
 }

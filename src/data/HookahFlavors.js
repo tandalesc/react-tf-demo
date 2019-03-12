@@ -62,25 +62,33 @@ class HookahFlavors {
     new Flavor("Clove", ["mint", "spice"]),
     new Flavor("Double Apple", ["spice", "fruit"])
   ];
-
-  static randomBuildingLogic = () => [randomInList(HookahFlavors.flavorList).index, randomInList(HookahFlavors.flavorList).index];
-
-  static typePairingBuildingLogic = () => {
-    const firstPick = randomInList(HookahFlavors.flavorList);
-    let firstPick_randomType = randomInList(firstPick.types);
-    let secondPick;
-    if(firstPick.hasType("mint")) {
-      secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "cream"));
-    } else if(firstPick.hasType("cream")) {
-      secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "mint"));
-    } else {
-      secondPick = randomInList(Flavor.ofType(firstPick_randomType));
+  static buildingLogic = {
+    random: {
+      name: "Random",
+      code: "random",
+      fn: () => [randomInList(HookahFlavors.flavorList).index, randomInList(HookahFlavors.flavorList).index]
+    },
+    typePairing: {
+      name: "Type Pairing",
+      code: "typePairing",
+      fn: () => {
+        const firstPick = randomInList(HookahFlavors.flavorList);
+        let firstPick_randomType = randomInList(firstPick.types);
+        let secondPick;
+        if(firstPick.hasType("mint")) {
+          secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "cream"));
+        } else if(firstPick.hasType("cream")) {
+          secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "mint"));
+        } else {
+          secondPick = randomInList(Flavor.ofType(firstPick_randomType));
+        }
+        return [firstPick.index, secondPick.index];
+      }
     }
-    return [firstPick.index, secondPick.index];
   }
 
-  buildFlavorPairs = (numPairs=100,buildingLogic=HookahFlavors.randomBuildingLogic) => {
-    return [...Array(numPairs)].map(buildingLogic);
+  buildFlavorPairs = (numPairs=100, buildingLogic=HookahFlavors.buildingLogic.random) => {
+    return [...Array(numPairs)].map(buildingLogic.fn);
   };
 
 }
