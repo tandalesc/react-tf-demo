@@ -42,31 +42,31 @@ export class Flavor {
 }
 
 class HookahFlavors {
-  flavorList = [
+  static flavorList = [
     new Flavor("Watermelon Mint", ["mint", "fruit", "sweet"]),
-    new Flavor("Lemon Mint", ["mint", "fruit", "tart"]),
+    new Flavor("Lemon Mint", ["mint", "fruit", "citrus"]),
+    new Flavor("Grapefruit Mint", ["mint", "fruit", "citrus"]),
+    new Flavor("Orange Mint", ["mint", "fruit", "citrus", "sweet"]),
     new Flavor("Grape Mint", ["mint", "fruit", "sweet"]),
     new Flavor("Mint", ["mint"]),
     new Flavor("Paan", ["mint", "spice"]),
     new Flavor("Pirate's Cove", ["spice"]),
     new Flavor("Tropicool", ["fruit", "mint", "sweet"]),
     new Flavor("Peach", ["fruit", "sweet"]),
-    new Flavor("Mango", ["fruit", "sweet"]),
-    new Flavor("Lemon", ["fruit", "tart"]),
+    new Flavor("Cherry", ["fruit", "sweet"]),
+    new Flavor("Lemon", ["fruit", "citrus"]),
+    new Flavor("Limoncello", ["fruit", "citrus", "sweet", "cream"]),
     new Flavor("Strawberry", ["fruit", "sweet"]),
     new Flavor("Vanilla", ["cream", "sweet"]),
     new Flavor("Chai Tea", ["cream", "spice"]),
+    new Flavor("Clove", ["mint", "spice"]),
     new Flavor("Double Apple", ["spice", "fruit"])
   ];
 
-  constructor() {
-    console.log(Flavor.maps);
-  }
+  static randomBuildingLogic = () => [randomInList(HookahFlavors.flavorList).index, randomInList(HookahFlavors.flavorList).index];
 
-  randomBuildingLogic = () => [randomInList(this.flavorList).index, randomInList(this.flavorList).index];
-
-  typePairingBuildingLogic = () => {
-    const firstPick = randomInList(this.flavorList);
+  static typePairingBuildingLogic = () => {
+    const firstPick = randomInList(HookahFlavors.flavorList);
     let firstPick_randomType = randomInList(firstPick.types);
     let secondPick;
     if(firstPick.hasType("mint")) {
@@ -79,7 +79,7 @@ class HookahFlavors {
     return [firstPick.index, secondPick.index];
   }
 
-  buildFlavorPairs = (numPairs=100,buildingLogic=this.randomBuildingLogic) => {
+  buildFlavorPairs = (numPairs=100,buildingLogic=HookahFlavors.randomBuildingLogic) => {
     return [...Array(numPairs)].map(buildingLogic);
   };
 

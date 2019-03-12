@@ -1,3 +1,49 @@
+
 .App {
-  margin: 10px;
+  display: grid;
+
+  margin: 0 10px;
+
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 50vh 50vh;
+  grid-template-areas:
+    "dataset probabilityTable log"
+    "dataset controls log";
+  grid-column-gap: 10px;
+}
+
+@media(max-width : 550px) {
+  .App {
+    grid-template-columns: 1fr;
+    grid-template-rows: 30vh . . .;
+    grid-template-areas:
+      "probabilityTable"
+      "controls"
+      "log"
+      "dataset";
+    grid-column-gap: 10px;
+  }
+}
+
+.App .dataset {
+  grid-area: dataset;
+  overflow: scroll;
+}
+.App .log {
+  grid-area: log;
+  overflow: scroll;
+}
+.App .probabilityTable {
+  grid-area: probabilityTable;
+  overflow: scroll;
+}
+.App .controls {
+  grid-area: controls;
+}
+
+.App table {
+  width: 100%;
+}
+.App table thead tr td {
+  font-weight: bold;
 }
