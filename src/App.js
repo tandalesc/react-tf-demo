@@ -2,7 +2,7 @@ import React, { Fragment, Component } from 'react';
 import * as tf from '@tensorflow/tfjs';
 
 import PairMatchingModel from './models/PairMatching';
-import HookahFlavors from './data/HookahFlavors';
+import HookahFlavors, { Flavor } from './data/HookahFlavors';
 
 import './App.css';
 
@@ -11,9 +11,9 @@ const parseIntNoNaN = (str) => str === '' ? 0 : parseInt(str);
 class App extends Component {
   state = {
     trainingLog: [],
-    dataSize: 200,
-    batchSize: 10,
-    epochs: 25,
+    dataSize: 1200,
+    batchSize: 30,
+    epochs: 30,
     testPredict: "Paan",
     testOutput: "",
     jsonData: "",
@@ -45,7 +45,7 @@ class App extends Component {
   }
 
   trainModelOC = () => {
-    const data = this.data.hookahFlavorPairs ? this.data.hookahFlavorPairs : null;
+    const data = this.state.hookahFlavorPairs ? this.state.hookahFlavorPairs : null;
     this.setState({disableButtons: true});
     this.models.pairMatching.trainModel(data, this.state.batchSize, this.state.epochs)
       .then(()=>{
@@ -54,27 +54,32 @@ class App extends Component {
   };
 
   makeDataOC = () => {
-    const flavorPairs = this.data.hookahFlavors.buildFlavorPairs(this.state.dataSize);
-    const translationMaps = this.data.hookahFlavors.getFlavorTranslationMaps();
-    const translatedPairs = flavorPairs.map(([p1,p2])=>(`${translationMaps.backward.get(p1)} - ${translationMaps.backward.get(p2)}`)).sort();
+    const flavorPairs = this.data.hookahFlavors.buildFlavorPairs(this.state.dataSize, this.data.hookahFlavors.typePairingBuildingLogic);
+    const translatedPairs = flavorPairs.map(([p1,p2])=>(`${Flavor.maps.index.get(p1).name} - ${Flavor.maps.index.get(p2).name}`)).sort();
 
     this.setState({jsonData: (
-      <Fragment>
-        {translatedPairs.map((e)=>(<Fragment>{e}<br/></Fragment>))}
-      </Fragment>
-    )});
+        <Fragment>
+          {translatedPairs.map((e)=>(<Fragment>{e}<br/></Fragment>))}
+        </Fragment>
+      ),
+      hookahFlavorPairs: tf.tensor(flavorPairs, [flavorPairs.length, 2],'int32')
+    });
   };
 
   predictResultOC = () => {
-    const {forward, backward} = this.data.hookahFlavors.getFlavorTranslationMaps();
-    if(forward.has(this.state.testPredict)) {
-      const predictionIndex = forward.get(this.state.testPredict);
-      const prediction = this.models.pairMatching.predict(tf.tensor([predictionIndex],[1],'int32'));
-      const closestMatch = tf.argMax(tf.unstack(prediction)[0]);
-      const jsValue = Array.from(closestMatch.dataSync())[0];
+    if(Flavor.maps.name.has(this.state.testPredict)) {
+      const testFlavor = Flavor.maps.name.get(this.state.testPredict);
+      const testIdx = testFlavor.index;
+      const prediction = this.models.pairMatching.predict(tf.tensor([testIdx],[1],'int32'));
+      const prediction_js = Array.from(tf.unstack(prediction)[0].dataSync());
+      const n = 3;
+      const top_n = Array.from(tf.unstack(prediction)[0].dataSync()).sort().slice(-n).reverse();
+      const match_indices = top_n.map(match=>prediction_js.findIndex(e=>e===match));
+      const match_names = match_indices.map(idx=>Flavor.maps.index.get(idx).name);
+
       this.setState({
-        testOutput:backward.get(jsValue),
-        trainingLog: Array.from(tf.unstack(prediction)[0].dataSync())
+        testOutput: match_names.join(", "),
+        trainingLog: prediction_js
       });
     } else {
       alert(`Could not find ${this.state.testPredict} in the flavor database.`);
@@ -92,7 +97,7 @@ class App extends Component {
           <tbody>
             {this.state.trainingLog.map((e,i)=>(
               <tr key={i}>
-                <td>{this.data.hookahFlavors.flavorList[i]}</td>
+                <td>{Flavor.maps.index.get(i).name}</td>
                 <td>{e}</td>
               </tr>
             ))}

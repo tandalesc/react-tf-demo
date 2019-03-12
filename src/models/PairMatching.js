@@ -17,25 +17,27 @@ class PairMatching {
   buildModel() {
     //Simple Model
     this.model = this.tf.sequential();
-    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'relu', inputShape: [this.numCategories]}));
-    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'relu', inputShape: [this.numCategories]}));
-    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'relu', inputShape: [this.numCategories]}));
-    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'linear'}));
+    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'softplus', inputShape: [this.numCategories]}));
+    this.model.add(this.tf.layers.dropout({rate: 0.15}));
+    this.model.add(this.tf.layers.dense({units: this.numCategories, activation: 'softplus', inputShape: [this.numCategories]}));
+    this.model.add(this.tf.layers.dropout({rate: 0.15}));
+    this.model.add(this.tf.layers.softmax());
     this.model.summary();
-    this.model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+    this.model.compile({optimizer: 'adam', loss: 'categoricalCrossentropy'});
   }
 
   predict(input) {
     return this.model.predict(this.tf.oneHot(input, this.numCategories));
   }
 
-  trainModel(io_data,batchSize=20,epochs=100) {
+  trainModel(io_data,batchSize=20,epochs=10) {
     let xs, ys;
     if(io_data) {
       [xs, ys] = this.tf.split(io_data, 2, 1);
       xs = this.tf.unstack(xs.transpose())[0];
       ys = this.tf.unstack(ys.transpose())[0];
     } else {
+      console.log("GENERATING RANDOM DATA");
       xs = this.tf.multinomial(this.tf.range(0,this.numCategories),200);
       ys = this.tf.multinomial(this.tf.range(0,this.numCategories),200);
     }
@@ -47,6 +49,7 @@ class PairMatching {
       batchSize: batchSize,
       epochs: epochs,
       shuffle: true,
+      validationSplit: 0.25,
       callbacks: {
         onEpochEnd: this.logRecorder
       }
