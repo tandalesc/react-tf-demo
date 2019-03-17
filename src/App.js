@@ -1,8 +1,11 @@
 import React, { Fragment, PureComponent } from 'react';
 import * as tf from '@tensorflow/tfjs';
 
-import PairMatchingModel from './models/PairMatching';
-import HookahFlavors, { Flavor } from './data/HookahFlavors';
+import SymmetricPairMatching from './models/SymmetricPairMatching';
+import AssymetricPairMatching from './models/AssymetricPairMatching';
+import Type, { NoType } from './data/Type';
+import Element from './data/Element';
+import HookahFlavors from './data/HookahFlavors';
 
 import './App.css';
 
@@ -44,6 +47,7 @@ class App extends PureComponent {
     dropout: 0.15,
     validationSplit: 0.28,
     topN: 9,
+    model: "pairMatching",
     dataset: "hookahFlavors",
     testPredict: "Limoncello",
     buildingLogic: "typePairing",
@@ -62,8 +66,8 @@ class App extends PureComponent {
   }
 
   initializeModels = () => {
-    this.models.pairMatching = new PairMatchingModel(tf, {
-      numCategories: Flavor.count,
+    this.models.symmetricPairMatching = new SymmetricPairMatching(tf, {
+      numCategories: Element.count,
       dropout: this.state.dropout,
       validationSplit: this.state.validationSplit,
       logRecorder: (epoch, logs) => {
@@ -79,6 +83,25 @@ class App extends PureComponent {
       },
       numLayers: 2
     });
+    this.models.assymetricPairMatching = new AssymetricPairMatching(tf, {
+      numCategories: Element.count,
+      numFeatures: Type.count,
+      adaptNeuronCount: true,
+      dropout: this.state.dropout,
+      validationSplit: this.state.validationSplit,
+      logRecorder: (epoch, logs) => {
+        this.setState({
+          trainingLog: this.state.trainingLog.concat([(
+            <tr key={logRecorderKey++}>
+              <td>{epoch}</td>
+              <td>{(logs.val_loss).toFixed(5)}</td>
+              <td>{(logs.loss).toFixed(5)}</td>
+            </tr>
+          )])
+        });
+      },
+      numLayers: 3
+    });
     this.setState({status: "state.loadData"});
   }
 
@@ -91,19 +114,46 @@ class App extends PureComponent {
       categoricalProbabilities: [],
       trainingLog: [],
       testOutput: "",
-      workingDataset: ""
+      workingDataset: "",
+      status: "state.loadData",
+      allowedToTrain: false,
+      allowedToPredict: false
     });
     this.initializeModels();
   }
 
+  saveModelOC = () => {
+    const modelName = prompt("Which model would you like to save to localstorage?");
+    this.models.pairMatching.saveModel(modelName);
+  };
+
+  loadModelOC = () => {
+    const modelName = prompt("Which model would you like to import from localstorage?");
+    this.initializeModels();
+    this.models.pairMatching.loadModel(modelName);
+    this.setState({
+      trainingLog: [],
+      allowedToPredict: true,
+      status: "state.trained"
+    });
+  };
+
   trainModelOC = () => {
     if(this.state.allowedToTrain) {
-      const data = this.state.tensorData;
+      let xs,ys;
+      if(HookahFlavors.buildingLogic[this.state.buildingLogic].extraFeatures) {
+        xs = tf.slice(this.state.tensorData.transpose(), [0], [3]).transpose();
+        ys = tf.slice(this.state.tensorData.transpose(), [3]).squeeze();
+      } else {
+        [xs,ys] = tf.split(this.state.tensorData.transpose(), 2, 0);
+        xs = xs.squeeze();
+        ys = ys.squeeze();
+      }
       this.setState({
         disableButtons: true,
         status: "state.training"
       });
-      this.models.pairMatching.trainModel(data, {
+      this.models[this.state.model].trainModel(xs, ys, {
         batchSize: this.state.batchSize,
         epochs: this.state.epochs,
         validationSplit: this.state.validationSplit
@@ -122,19 +172,35 @@ class App extends PureComponent {
 
   makeDataOC = () => {
     const flavorPairs = this.data.hookahFlavors.buildFlavorPairs(this.state.dataSize, HookahFlavors.buildingLogic[this.state.buildingLogic]);
-    const pairTableRows = flavorPairs
-      .map(([p1,p2])=>([Flavor.maps.index.get(p1).name, Flavor.maps.index.get(p2).name]))
-      .sort((pair1,pair2)=>(pair1[0]+pair1[1]).localeCompare(pair2[0]+pair2[1]))
-      .map(([p1,p2])=>(
-        <tr>
-          <td>{p1}</td>
-          <td>{p2}</td>
-        </tr>
-      ));
+    let pairTableRows;
+    let tensorData;
+    if(HookahFlavors.buildingLogic[this.state.buildingLogic].extraFeatures) {
+      pairTableRows = flavorPairs
+        .map(([p1,t11,t12,p2])=>([Element.maps.index.get(p1).name, Element.maps.index.get(p2).name]))
+        .sort((pair1,pair2)=>(pair1[0]+pair1[1]).localeCompare(pair2[0]+pair2[1]))
+        .map(([p1,p2])=>(
+          <tr>
+            <td>{p1}</td>
+            <td>{p2}</td>
+          </tr>
+        ));
+      tensorData = tf.tensor(flavorPairs, [flavorPairs.length, 4], 'int32');
+    } else {
+      pairTableRows = flavorPairs
+        .map(([p1,p2])=>([Element.maps.index.get(p1).name, Element.maps.index.get(p2).name]))
+        .sort((pair1,pair2)=>(pair1[0]+pair1[1]).localeCompare(pair2[0]+pair2[1]))
+        .map(([p1,p2])=>(
+          <tr>
+            <td>{p1}</td>
+            <td>{p2}</td>
+          </tr>
+        ));
+      tensorData = tf.tensor(flavorPairs, [flavorPairs.length, 2], 'int32');
+    }
 
     this.setState({
       workingDataset: pairTableRows,
-      tensorData: tf.tensor(flavorPairs, [flavorPairs.length, 2],'int32'),
+      tensorData: tensorData,
       allowedToTrain: true,
       status: "state.readyToTrain"
     });
@@ -142,10 +208,24 @@ class App extends PureComponent {
 
   predictResultOC = () => {
     if(this.state.allowedToPredict) {
-      if(Flavor.maps.name.has(this.state.testPredict)) {
-        const testFlavor = Flavor.maps.name.get(this.state.testPredict);
-        const testIdx = testFlavor.index;
-        const prediction = this.models.pairMatching.predict(tf.tensor([testIdx],[1],'int32'));
+      if(Element.maps.name.has(this.state.testPredict)) {
+        const testFlavor = Element.maps.name.get(this.state.testPredict);
+        let testIdx;
+        let prediction;
+        if(this.state.model==="pairMatching") {
+          testIdx = testFlavor.index;
+          prediction = this.models[this.state.model].predict(tf.tensor([testIdx],[1],'int32'));
+        } else if(this.state.model==="pairMatchingWithFeatures") {
+          let firstTwoFeatures;
+          if(testFlavor.types.length>1) {
+            firstTwoFeatures = [testFlavor.types[0].index, testFlavor.types[1].index];
+          } else {
+            firstTwoFeatures = [testFlavor.types[0].index, NoType.index];
+          }
+          testIdx = testFlavor.index;
+          const testVec = [testFlavor.index].concat(firstTwoFeatures);
+          prediction = this.models[this.state.model].predict(tf.tensor([testVec],[1,3],'int32').squeeze());
+        }
         const prediction_js = Array.from(tf.unstack(prediction)[0].dataSync());
         /* Calculate top n indices
         const n = 3;
@@ -157,7 +237,7 @@ class App extends PureComponent {
         this.setState({
           categoricalProbabilities: prediction_js
             .map((e,i)=>({
-              name: i===testIdx ? "<don't mix>" : Flavor.maps.index.get(i).name,
+              name: i===testIdx ? "<don't mix>" : Element.maps.index.get(i).name,
               probability:e
             }))
             .sort((l1,l2)=>l2.probability-l1.probability)
@@ -236,6 +316,13 @@ class App extends PureComponent {
               </div>
               <br/>
 
+              <label htmlFor="modelInput">Model</label>
+              <select value={this.state.model} onChange={this.updateFreeTextField('model')} id="modelInput">
+                {Object.values(this.models).map((e)=>(
+                  <option value={e.code}>{e.name}</option>
+                ))}
+              </select>
+
               <label htmlFor="batchSizeInput">Batch Size</label>
               <input type="text" onChange={this.updateFreeTextField('batchSize',parseIntNoNaN)} value={this.state.batchSize} id="batchSizeInput"/>
 
@@ -249,8 +336,8 @@ class App extends PureComponent {
               <input type="text" onChange={this.updateFreeTextField('validationSplit',parseFloatNoNaN)} value={this.state.validationSplit} id="validationSplitInput"/>
               <div className="buttonPanel">
                 <button disabled={this.state.disableButtons || !this.state.allowedToTrain} onClick={this.trainModelOC}>Train</button>
-                <button disabled={this.state.disableButtons || true} onClick={()=>{}}>Save</button>
-                <button disabled={this.state.disableButtons || true} onClick={()=>{}}>Load</button>
+                <button disabled={this.state.disableButtons || !this.state.allowedToPredict} onClick={this.saveModelOC}>Save</button>
+                <button disabled={this.state.disableButtons} onClick={this.loadModelOC}>Load</button>
               </div>
               <br/>
 

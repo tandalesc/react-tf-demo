@@ -1,67 +1,31 @@
 
-const randomInList = (list) => list[Math.floor(Math.random()*list.length)];
-
-const mapListHandler = (map) => new Proxy(map, {
-  set: (obj, prop, val) => {
-    if(!obj.has(prop)) {
-      obj.set(prop, [val]);
-    } else {
-      obj.get(prop).push(val);
-    }
-    return true;
-  }
-});
-
-export class Flavor {
-  static maps = {
-    type: new Map(),
-    name: new Map(),
-    index: new Map()
-  };
-  static mapTypeHandler = mapListHandler(Flavor.maps.type);
-  static ofType = (type) => Flavor.maps.type.has(type) ? (Flavor.maps.type.get(type)) : [];
-  static ofTypeWithout = (type, notType) => Flavor.ofType(type).filter(t => !t.hasType(notType));
-  static count = 0;
-  types = [];
-  constructor(name, flavorTypes) {
-    this.index = Flavor.count++;
-    this.name = name;
-    for(const type of flavorTypes) {
-      this.addType(type);
-      Flavor.maps.name.set(this.name, this);
-      Flavor.maps.index.set(this.index, this);
-    }
-  }
-  addType = (type) => {
-    if(!this.hasType(type)) {
-      this.types.push(type);
-      Flavor.mapTypeHandler[type] = this;
-    }
-  };
-  hasType = (type) => this.types.includes(type);
-}
+import { randomInList } from '../util/ModelUtilities';
+import { NoType } from './Type';
+import Element from './Element';
 
 class HookahFlavors {
   static flavorList = [
-    new Flavor("Watermelon Mint", ["mint", "fruit", "sweet"]),
-    new Flavor("Lemon Mint", ["mint", "fruit", "citrus"]),
-    new Flavor("Grapefruit Mint", ["mint", "fruit", "citrus"]),
-    new Flavor("Orange Mint", ["mint", "fruit", "citrus", "sweet"]),
-    new Flavor("Grape Mint", ["mint", "fruit", "sweet"]),
-    new Flavor("Mint", ["mint"]),
-    new Flavor("Paan", ["mint", "spice"]),
-    new Flavor("Pirate's Cove", ["spice"]),
-    new Flavor("Tropicool", ["fruit", "mint", "sweet"]),
-    new Flavor("Peach", ["fruit", "sweet"]),
-    new Flavor("Cherry", ["fruit", "sweet"]),
-    new Flavor("Lemon", ["fruit", "citrus"]),
-    new Flavor("Limoncello", ["fruit", "citrus", "sweet", "cream"]),
-    new Flavor("Strawberry", ["fruit", "sweet"]),
-    new Flavor("Vanilla", ["cream", "sweet"]),
-    new Flavor("Chai Tea", ["cream", "spice"]),
-    new Flavor("Clove", ["mint", "spice"]),
-    new Flavor("Double Apple", ["spice", "fruit"])
+    new Element("Watermelon Mint", ["mint", "fruit"]),
+    new Element("Lemon Mint", ["mint", "citrus"]),
+    new Element("Grapefruit Mint", ["mint", "citrus"]),
+    new Element("Orange Mint", ["mint", "citrus", "sweet"]),
+    new Element("Grape Mint", ["mint", "fruit", "sweet"]),
+    new Element("Mint", ["mint", NoType]),
+    new Element("Paan", ["mint", "spice"]),
+    new Element("Pirate's Cove", ["spice", NoType]),
+    new Element("Tropicool", ["fruit", "mint", "citrus"]),
+    new Element("Peach", ["fruit", "sweet"]),
+    new Element("Cherry", ["fruit", "sweet"]),
+    new Element("Lemon", ["sweet", "citrus"]),
+    new Element("Limoncello", ["citrus", "sweet", "cream"]),
+    new Element("Strawberry", ["fruit", "sweet"]),
+    new Element("Vanilla", ["cream", "sweet"]),
+    new Element("Chai Tea", ["cream", "spice"]),
+    new Element("Clove", ["mint", "spice"]),
+    new Element("Double Apple", ["spice", "fruit"]),
+    new Element("Grapefruit Paan", ["mint", "spice", "citrus"])
   ];
+
   static buildingLogic = {
     random: {
       name: "Random",
@@ -72,17 +36,63 @@ class HookahFlavors {
       name: "Type Pairing",
       code: "typePairing",
       fn: () => {
-        const firstPick = randomInList(HookahFlavors.flavorList);
-        let firstPick_randomType = randomInList(firstPick.types);
+        let firstPick = randomInList(HookahFlavors.flavorList);
+        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id===NoType.id));
+
         let secondPick;
         if(firstPick.hasType("mint")) {
-          secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "cream"));
+          secondPick = randomInList(Element.ofTypeExcluding(firstPick_randomType, "cream"));
         } else if(firstPick.hasType("cream")) {
-          secondPick = randomInList(Flavor.ofTypeWithout(firstPick_randomType, "mint"));
+          secondPick = randomInList(Element.ofTypeExcluding(firstPick_randomType, "mint"));
         } else {
-          secondPick = randomInList(Flavor.ofType(firstPick_randomType));
+          secondPick = randomInList(Element.ofType(firstPick_randomType));
         }
+        //if both flavors are sweet then recalculate second flavor
+        if(firstPick.hasType("sweet") && secondPick.hasType("sweet")){
+          secondPick = randomInList(Element.ofType(randomInList(firstPick.types)));
+        }
+
+        //50% chance of swapping first and second picks
+        if(Math.random()>0.5) {
+          const temp = firstPick;
+          firstPick = secondPick;
+          secondPick = temp;
+        }
+
         return [firstPick.index, secondPick.index];
+      }
+    },
+    typePairingWithFeatures: {
+      name: "Type Pairing With Features",
+      code: "typePairingWithFeatures",
+      extraFeatures: true,
+      fn: () => {
+        let firstPick = randomInList(HookahFlavors.flavorList);
+        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id===NoType.id));
+
+        let secondPick;
+        if(firstPick.hasType("mint")) {
+          secondPick = randomInList(Element.ofTypeExcluding(firstPick_randomType, "cream"));
+        } else if(firstPick.hasType("cream")) {
+          secondPick = randomInList(Element.ofTypeExcluding(firstPick_randomType, "mint"));
+        } else {
+          secondPick = randomInList(Element.ofType(firstPick_randomType));
+        }
+
+        //if both flavors are sweet then recalculate second flavor
+        if(firstPick.hasType("sweet") && secondPick.hasType("sweet")){
+          secondPick = randomInList(Element.ofType(randomInList(firstPick.types)));
+        }
+
+        //50% chance of swapping first and second picks
+        if(Math.random()>0.5) {
+          const temp = firstPick;
+          firstPick = secondPick;
+          secondPick = temp;
+        }
+
+        let firstTwoTypes = [firstPick.types[0].index, firstPick.types[1].index];
+        return [firstPick.index].concat(firstTwoTypes).concat([secondPick.index]);
       }
     }
   }
