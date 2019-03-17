@@ -30,14 +30,14 @@ class HookahFlavors {
     random: {
       name: "Random",
       code: "random",
-      fn: () => [randomInList(HookahFlavors.flavorList).index, randomInList(HookahFlavors.flavorList).index]
+      fn: () => [randomInList(HookahFlavors.flavorList).id, randomInList(HookahFlavors.flavorList).id]
     },
     typePairing: {
       name: "Type Pairing",
       code: "typePairing",
       fn: () => {
         let firstPick = randomInList(HookahFlavors.flavorList);
-        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id===NoType.id));
+        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id!==NoType.id));
 
         let secondPick;
         if(firstPick.hasType("mint")) {
@@ -47,9 +47,10 @@ class HookahFlavors {
         } else {
           secondPick = randomInList(Element.ofType(firstPick_randomType));
         }
-        //if both flavors are sweet then recalculate second flavor
-        if(firstPick.hasType("sweet") && secondPick.hasType("sweet")){
-          secondPick = randomInList(Element.ofType(randomInList(firstPick.types)));
+
+        //5% chance of picking a random second flavor
+        if(Math.random()<0.05) {
+          secondPick = randomInList(Element.ofType(firstPick_randomType));
         }
 
         //50% chance of swapping first and second picks
@@ -59,7 +60,7 @@ class HookahFlavors {
           secondPick = temp;
         }
 
-        return [firstPick.index, secondPick.index];
+        return [firstPick.id, secondPick.id];
       }
     },
     typePairingWithFeatures: {
@@ -68,7 +69,7 @@ class HookahFlavors {
       extraFeatures: true,
       fn: () => {
         let firstPick = randomInList(HookahFlavors.flavorList);
-        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id===NoType.id));
+        let firstPick_randomType = randomInList(firstPick.types.filter(type=>type.id!==NoType.id));
 
         let secondPick;
         if(firstPick.hasType("mint")) {
@@ -79,20 +80,19 @@ class HookahFlavors {
           secondPick = randomInList(Element.ofType(firstPick_randomType));
         }
 
-        //if both flavors are sweet then recalculate second flavor
-        if(firstPick.hasType("sweet") && secondPick.hasType("sweet")){
-          secondPick = randomInList(Element.ofType(randomInList(firstPick.types)));
+        //5% chance of picking a random second flavor
+        if(Math.random()<0.05) {
+          secondPick = randomInList(Element.ofType(firstPick_randomType));
         }
 
         //50% chance of swapping first and second picks
-        if(Math.random()>0.5) {
+        if(Math.random()<0.5) {
           const temp = firstPick;
           firstPick = secondPick;
           secondPick = temp;
         }
 
-        let firstTwoTypes = [firstPick.types[0].index, firstPick.types[1].index];
-        return [firstPick.index].concat(firstTwoTypes).concat([secondPick.index]);
+        return [firstPick.id, firstPick.types[0].id, firstPick.types[1].id, secondPick.id];
       }
     }
   }

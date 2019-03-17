@@ -14,20 +14,20 @@ export const parseTypes = (listOfUncheckedTypes) =>
 class Type {
   static maps = {
     name: new Map(),
-    index: new Map(),
+    id: new Map(),
     code: new Map()
   };
   static fromName = (name) => Type.maps.name.has(name) ? Type.maps.name.get(name) : null;
   static fromCode = (code) => Type.maps.code.has(code) ? Type.maps.code.get(code) : null;
-  static fromIndex = (index) => Type.maps.index.has(index) ? Type.maps.index.get(index) : null;
-  static count = 0;
+  static fromId = (id) => Type.maps.id.has(id) ? Type.maps.id.get(id) : null;
+  static next_id = 0;
 
   constructor(name) {
-    this.index = Type.count++;
+    this.id = Type.next_id++;
     this.name = name;
     this.code = makeCodeFromName(name);
     Type.maps.name.set(this.name, this);
-    Type.maps.index.set(this.index, this);
+    Type.maps.id.set(this.id, this);
     Type.maps.code.set(this.code, this);
   }
 }

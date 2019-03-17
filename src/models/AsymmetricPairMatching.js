@@ -1,7 +1,7 @@
 
 import Model from './Model.js';
 
-class AssymetricPairMatching extends Model {
+class AsymmetricPairMatching extends Model {
   model = null;
   xs = null;
   ys = null;
@@ -17,7 +17,7 @@ class AssymetricPairMatching extends Model {
       dropout=0.1,
       validationSplit=0.25
     }) {
-    super("Assymetric Pair Matching", tf);
+    super("Asymmetric Pair Matching", tf);
     this.logRecorder = logRecorder;
     this.numCategories = numCategories;
     this.numFeatures = numFeatures;
@@ -72,4 +72,4 @@ class AssymetricPairMatching extends Model {
   }
 }
 
-export default AssymetricPairMatching;
+export default AsymmetricPairMatching;
